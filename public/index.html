@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Stock Exchange - Real-Time Trading Platform</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f6f6f6;
+            --bg-tertiary: #ffffff;
+            --text-primary: #000000;
+            --text-secondary: #6e6e73;
+            --border-color: #e5e5ea;
+            --accent-blue: #0078ff;
+            --accent-green: #34c759;
+            --accent-red: #ff3b30;
+            --hover-bg: #f0f0f5;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent-blue);
+            letter-spacing: -0.5px;
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 600px;
+            margin: 0 32px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.2s;
+            background: var(--bg-secondary);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: var(--bg-primary);
+            box-shadow: 0 0 0 3px rgba(0, 120, 255, 0.1);
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+        }
+
+        .search-result-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: var(--hover-bg);
+        }
+
+        .search-result-symbol {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 2px;
+        }
+
+        .search-result-name {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .nav {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .nav-btn:hover {
+            background: var(--hover-bg);
+        }
+
+        .nav-btn.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-primary:hover {
+            background: #0066dd;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-success {
+            background: var(--accent-green);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2fb350;
+        }
+
+        .btn-danger {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e63428;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .stat-value.positive {
+            color: var(--accent-green);
+        }
+
+        .stat-value.negative {
+            color: var(--accent-red);
+        }
+
+        .stock-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stock-card:hover {
+            border-color: var(--accent-blue);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .stock-symbol {
+            font-size: 24px;
+            font-weight: 700;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .stock-name {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .stock-price {
+            text-align: right;
+        }
+
+        .price-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .price-change {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 4px;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .price-change.positive {
+            color: var(--accent-green);
+        }
+
+        .price-change.negative {
+            color: var(--accent-red);
+        }
+
+        .chart-container {
+            height: 400px;
+            margin: 24px 0;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            text-align: left;
+            padding: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .table td {
+            padding: 16px 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 15px;
+        }
+
+        .table tr:hover {
+            background: var(--hover-bg);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(0, 120, 255, 0.1);
+        }
+
+        .auth-container {
+            max-width: 400px;
+            margin: 80px auto;
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .auth-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .auth-toggle {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-secondary);
+        }
+
+        .auth-toggle button {
+            color: var(--accent-blue);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-success {
+            background: rgba(52, 199, 89, 0.1);
+            color: var(--accent-green);
+        }
+
+        .badge-danger {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--accent-red);
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 12px 16px;
+            }
+
+            .search-container {
+                order: 3;
+                width: 100%;
+                margin: 12px 0 0 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // API Configuration
+        const API_BASE = window.location.origin;
+
+        // Axios instance with auth
+        const api = axios.create({
+            baseURL: API_BASE
+        });
+
+        api.interceptors.request.use(config => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        });
+
+        // Main App Component
+        function App() {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [activeTab, setActiveTab] = useState('dashboard');
+
+            useEffect(() => {
+                checkAuth();
+            }, []);
+
+            const checkAuth = async () => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    try {
+                        const response = await api.get('/api/auth/profile');
+                        setUser(response.data);
+                    } catch (error) {
+                        localStorage.removeItem('token');
+                    }
+                }
+                setLoading(false);
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('token');
+                setUser(null);
+                setActiveTab('dashboard');
+            };
+
+            if (loading) {
+                return (
+                    <div className="loading">
+                        <div className="spinner"></div>
+                        <p style={{ marginTop: '16px' }}>Loading...</p>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return <AuthScreen onLogin={setUser} />;
+            }
+
+            return (
+                <>
+                    <Header 
+                        user={user} 
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                        onLogout={handleLogout}
+                    />
+                    <div className="container">
+                        {activeTab === 'dashboard' && <Dashboard user={user} />}
+                        {activeTab === 'search' && <SearchPage user={user} />}
+                        {activeTab === 'portfolio' && <Portfolio user={user} />}
+                        {activeTab === 'leaderboard' && <Leaderboard user={user} />}
+                    </div>
+                </>
+            );
+        }
+
+        // Header Component
+        function Header({ user, activeTab, setActiveTab, onLogout }) {
+            const [searchQuery, setSearchQuery] = useState('');
+            const [searchResults, setSearchResults] = useState([]);
+            const [showResults, setShowResults] = useState(false);
+
+            const searchTimeout = useRef(null);
+
+            const handleSearch = async (query) => {
+                setSearchQuery(query);
+                if (query.length < 2) {
+                    setSearchResults([]);
+                    return;
+                }
+
+                clearTimeout(searchTimeout.current);
+                searchTimeout.current = setTimeout(async () => {
+                    try {
+                        const response = await api.get(`/api/market/search/${query}`);
+                        setSearchResults(response.data);
+                        setShowResults(true);
+                    } catch (error) {
+                        console.error('Search error:', error);
+                    }
+                }, 300);
+            };
+
+            return (
+                <header className="header">
+                    <div className="header-content">
+                        <div className="logo">VSE</div>
+                        
+                        <div className="search-container">
+                            <input
+                                type="text"
+                                className="search-input"
+                                placeholder="Search stocks (e.g., AAPL, TSLA, GOOGL)..."
+                                value={searchQuery}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                onFocus={() => searchResults.length > 0 && setShowResults(true)}
+                                onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                            />
+                            {showResults && searchResults.length > 0 && (
+                                <div className="search-results">
+                                    {searchResults.map((result, idx) => (
+                                        <div 
+                                            key={idx} 
+                                            className="search-result-item"
+                                            onClick={() => {
+                                                setActiveTab('stock-' + result.symbol);
+                                                setShowResults(false);
+                                                setSearchQuery('');
+                                            }}
+                                        >
+                                            <div className="search-result-symbol">{result.symbol}</div>
+                                            <div className="search-result-name">{result.name}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <nav className="nav">
+                            <button 
+                                className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('dashboard')}
+                            >
+                                Dashboard
+                            </button>
+                            <button 
+                                className={`nav-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('portfolio')}
+                            >
+                                Portfolio
+                            </button>
+                            <button 
+                                className={`nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('leaderboard')}
+                            >
+                                Leaderboard
+                            </button>
+                            <button className="nav-btn" onClick={onLogout}>
+                                Logout
+                            </button>
+                        </nav>
+                    </div>
+                </header>
+            );
+        }
+
+        // Auth Screen
+        function AuthScreen({ onLogin }) {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+
+                try {
+                    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+                    const payload = isLogin 
+                        ? { username, password }
+                        : { email, username, password };
+
+                    const response = await axios.post(API_BASE + endpoint, payload);
+                    localStorage.setItem('token', response.data.token);
+                    onLogin(response.data.user);
+                } catch (error) {
+                    setError(error.response?.data?.error || 'Authentication failed');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="auth-container">
+                    <h1 className="auth-title">{isLogin ? 'Welcome Back' : 'Get Started'}</h1>
+                    <form onSubmit={handleSubmit}>
+                        {!isLogin && (
+                            <div className="form-group">
+                                <label className="form-label">Email</label>
+                                <input
+                                    type="email"
+                                    className="form-input"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                        )}
+                        <div className="form-group">
+                            <label className="form-label">Username</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Password</label>
+                            <input
+                                type="password"
+                                className="form-input"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        {error && (
+                            <div style={{ color: 'var(--accent-red)', marginBottom: '16px', fontSize: '14px' }}>
+                                {error}
+                            </div>
+                        )}
+                        <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={loading}>
+                            {loading ? 'Processing...' : (isLogin ? 'Login' : 'Create Account')}
+                        </button>
+                    </form>
+                    <div className="auth-toggle">
+                        {isLogin ? "Don't have an account? " : "Already have an account? "}
+                        <button onClick={() => setIsLogin(!isLogin)}>
+                            {isLogin ? 'Sign Up' : 'Login'}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // Dashboard Component
+        function Dashboard({ user }) {
+            const [summary, setSummary] = useState(null);
+            const [overview, setOverview] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                loadData();
+            }, []);
+
+            const loadData = async () => {
+                try {
+                    const [summaryRes, overviewRes] = await Promise.all([
+                        api.get('/api/portfolio/summary'),
+                        api.get('/api/market/overview')
+                    ]);
+                    setSummary(summaryRes.data);
+                    setOverview(overviewRes.data);
+                } catch (error) {
+                    console.error('Load error:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            if (loading) {
+                return <div className="loading"><div className="spinner"></div></div>;
+            }
+
+            return (
+                <>
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-label">Portfolio Value</div>
+                            <div className="stat-value">
+                                ${summary?.totalPortfolioValue?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-label">Cash Balance</div>
+                            <div className="stat-value">
+                                ${summary?.cashBalance?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-label">Total Return</div>
+                            <div className={`stat-value ${(summary?.totalReturn || 0) >= 0 ? 'positive' : 'negative'}`}>
+                                {(summary?.totalReturn || 0) >= 0 ? '+' : ''}{summary?.totalReturn?.toFixed(2) || '0.00'}%
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-label">Invested</div>
+                            <div className="stat-value">
+                                ${summary?.invested?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {overview && (
+                        <>
+                            <div className="card">
+                                <h2 className="card-title">🚀 Top Gainers</h2>
+                                {overview.gainers?.slice(0, 5).map((stock, idx) => (
+                                    <StockCard key={idx} stock={stock} />
+                                ))}
+                            </div>
+
+                            <div className="card">
+                                <h2 className="card-title">📉 Top Losers</h2>
+                                {overview.losers?.slice(0, 5).map((stock, idx) => (
+                                    <StockCard key={idx} stock={stock} />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </>
+            );
+        }
+
+        // Stock Card Component
+        function StockCard({ stock }) {
+            const [showTrade, setShowTrade] = useState(false);
+
+            return (
+                <>
+                    <div className="stock-card" onClick={() => setShowTrade(true)}>
+                        <div className="stock-header">
+                            <div>
+                                <div className="stock-symbol">{stock.symbol}</div>
+                                <div className="stock-name">{stock.name}</div>
+                            </div>
+                            <div className="stock-price">
+                                <div className="price-value">${stock.price?.toFixed(2)}</div>
+                                <div className={`price-change ${stock.changePercent >= 0 ? 'positive' : 'negative'}`}>
+                                    {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {showTrade && <TradeModal stock={stock} onClose={() => setShowTrade(false)} />}
+                </>
+            );
+        }
+
+        // Trade Modal
+        function TradeModal({ stock, onClose }) {
+            const [action, setAction] = useState('buy');
+            const [shares, setShares] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleTrade = async () => {
+                if (!shares || shares <= 0) {
+                    alert('Please enter valid number of shares');
+                    return;
+                }
+
+                setLoading(true);
+                try {
+                    await api.post('/api/trade', {
+                        symbol: stock.symbol,
+                        shares: parseInt(shares),
+                        action,
+                        price: stock.price
+                    });
+                    alert(`✅ Successfully ${action === 'buy' ? 'bought' : 'sold'} ${shares} shares of ${stock.symbol}`);
+                    onClose();
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.response?.data?.error || 'Trade failed');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const total = (shares || 0) * stock.price + 4.95;
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h2 className="modal-title">Trade {stock.symbol}</h2>
+                        
+                        <div style={{ marginBottom: '24px' }}>
+                            <div style={{ fontSize: '32px', fontWeight: '700', fontFamily: 'Roboto Mono' }}>
+                                ${stock.price.toFixed(2)}
+                            </div>
+                            <div style={{ color: 'var(--text-secondary)' }}>{stock.name}</div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Action</label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                    className={`btn-primary ${action === 'buy' ? 'btn-success' : ''}`}
+                                    style={{ flex: 1 }}
+                                    onClick={() => setAction('buy')}
+                                >
+                                    Buy
+                                </button>
+                                <button 
+                                    className={`btn-primary ${action === 'sell' ? 'btn-danger' : ''}`}
+                                    style={{ flex: 1 }}
+                                    onClick={() => setAction('sell')}
+                                >
+                                    Sell
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Shares</label>
+                            <input
+                                type="number"
+                                className="form-input"
+                                value={shares}
+                                onChange={(e) => setShares(e.target.value)}
+                                placeholder="Enter number of shares"
+                                min="1"
+                            />
+                        </div>
+
+                        <div style={{ background: 'var(--bg-secondary)', padding: '16px', borderRadius: '8px', marginBottom: '24px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span>Shares × Price:</span>
+                                <span style={{ fontFamily: 'Roboto Mono', fontWeight: '600' }}>
+                                    ${((shares || 0) * stock.price).toFixed(2)}
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span>Commission:</span>
+                                <span style={{ fontFamily: 'Roboto Mono' }}>$4.95</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                                <span style={{ fontWeight: '600' }}>Total:</span>
+                                <span style={{ fontFamily: 'Roboto Mono', fontWeight: '700', fontSize: '18px' }}>
+                                    ${total.toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button 
+                                className="btn-primary"
+                                style={{ flex: 1 }}
+                                onClick={handleTrade}
+                                disabled={loading}
+                            >
+                                {loading ? 'Processing...' : `Confirm ${action === 'buy' ? 'Buy' : 'Sell'}`}
+                            </button>
+                            <button 
+                                className="btn-primary"
+                                style={{ flex: 1, background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                                onClick={onClose}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Portfolio Component
+        function Portfolio({ user }) {
+            const [holdings, setHoldings] = useState([]);
+            const [transactions, setTransactions] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                loadPortfolio();
+            }, []);
+
+            const loadPortfolio = async () => {
+                try {
+                    const [holdingsRes, transactionsRes] = await Promise.all([
+                        api.get('/api/portfolio'),
+                        api.get('/api/transactions')
+                    ]);
+                    setHoldings(holdingsRes.data);
+                    setTransactions(transactionsRes.data);
+                } catch (error) {
+                    console.error('Portfolio load error:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            if (loading) {
+                return <div className="loading"><div className="spinner"></div></div>;
+            }
+
+            return (
+                <>
+                    <div className="card">
+                        <h2 className="card-title">Your Holdings</h2>
+                        {holdings.length === 0 ? (
+                            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px' }}>
+                                No holdings yet. Start trading to build your portfolio!
+                            </p>
+                        ) : (
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Shares</th>
+                                        <th>Avg Price</th>
+                                        <th>Total Value</th>
+                                        <th>Gain/Loss</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {holdings.map((holding, idx) => {
+                                        const totalValue = holding.shares * holding.avg_price;
+                                        const gainLoss = 0; // Would calculate with current price
+                                        return (
+                                            <tr key={idx}>
+                                                <td style={{ fontWeight: '600', fontFamily: 'Roboto Mono' }}>{holding.symbol}</td>
+                                                <td>{holding.shares}</td>
+                                                <td>${holding.avg_price.toFixed(2)}</td>
+                                                <td>${totalValue.toFixed(2)}</td>
+                                                <td style={{ color: gainLoss >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                                                    {gainLoss >= 0 ? '+' : ''}${gainLoss.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+
+                    <div className="card">
+                        <h2 className="card-title">Transaction History</h2>
+                        {transactions.length === 0 ? (
+                            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px' }}>
+                                No transactions yet
+                            </p>
+                        ) : (
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Symbol</th>
+                                        <th>Type</th>
+                                        <th>Shares</th>
+                                        <th>Price</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {transactions.map((tx, idx) => (
+                                        <tr key={idx}>
+                                            <td>{new Date(tx.timestamp).toLocaleDateString()}</td>
+                                            <td style={{ fontWeight: '600', fontFamily: 'Roboto Mono' }}>{tx.symbol}</td>
+                                            <td>
+                                                <span className={`badge ${tx.type === 'buy' ? 'badge-success' : 'badge-danger'}`}>
+                                                    {tx.type.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td>{tx.shares}</td>
+                                            <td>${tx.price.toFixed(2)}</td>
+                                            <td>${tx.total_amount.toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </>
+            );
+        }
+
+        // Leaderboard Component
+        function Leaderboard({ user }) {
+            const [leaders, setLeaders] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                loadLeaderboard();
+            }, []);
+
+            const loadLeaderboard = async () => {
+                try {
+                    const response = await api.get('/api/leaderboard');
+                    setLeaders(response.data);
+                } catch (error) {
+                    console.error('Leaderboard error:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            if (loading) {
+                return <div className="loading"><div className="spinner"></div></div>;
+            }
+
+            return (
+                <div className="card">
+                    <h2 className="card-title">🏆 Global Leaderboard</h2>
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Username</th>
+                                <th>Portfolio Value</th>
+                                <th>Return</th>
+                                <th>Trades</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {leaders.map((leader, idx) => (
+                                <tr key={idx} style={{ background: leader.username === user.username ? 'rgba(0, 120, 255, 0.05)' : undefined }}>
+                                    <td style={{ fontWeight: '700', fontSize: '18px' }}>#{leader.rank}</td>
+                                    <td style={{ fontWeight: '600' }}>{leader.username}</td>
+                                    <td style={{ fontFamily: 'Roboto Mono' }}>${leader.totalValue.toFixed(2)}</td>
+                                    <td style={{ 
+                                        color: leader.returnPercent >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                                        fontWeight: '600',
+                                        fontFamily: 'Roboto Mono'
+                                    }}>
+                                        {leader.returnPercent >= 0 ? '+' : ''}{leader.returnPercent}%
+                                    </td>
+                                    <td>{leader.tradeCount}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        }
+
+        // Render App
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
