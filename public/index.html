@@ -524,6 +524,7 @@
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
             const [activeTab, setActiveTab] = useState('dashboard');
+            const [selectedStock, setSelectedStock] = useState(null);
 
             useEffect(() => {
                 checkAuth();
@@ -548,6 +549,11 @@
                 setActiveTab('dashboard');
             };
 
+            const handleStockSelect = (symbol) => {
+                setSelectedStock(symbol);
+                setActiveTab('stock-detail');
+            };
+
             if (loading) {
                 return (
                     <div className="loading">
@@ -568,42 +574,63 @@
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
                         onLogout={handleLogout}
+                        onStockSelect={handleStockSelect}
                     />
                     <div className="container">
-                        {activeTab === 'dashboard' && <Dashboard user={user} />}
-                        {activeTab === 'search' && <SearchPage user={user} />}
+                        {activeTab === 'dashboard' && <Dashboard user={user} onStockSelect={handleStockSelect} />}
                         {activeTab === 'portfolio' && <Portfolio user={user} />}
                         {activeTab === 'leaderboard' && <Leaderboard user={user} />}
+                        {activeTab === 'stock-detail' && selectedStock && <StockDetail symbol={selectedStock} />}
                     </div>
                 </>
             );
         }
 
         // Header Component
-        function Header({ user, activeTab, setActiveTab, onLogout }) {
+        function Header({ user, activeTab, setActiveTab, onLogout, onStockSelect }) {
             const [searchQuery, setSearchQuery] = useState('');
             const [searchResults, setSearchResults] = useState([]);
             const [showResults, setShowResults] = useState(false);
+            const [searching, setSearching] = useState(false);
 
             const searchTimeout = useRef(null);
 
             const handleSearch = async (query) => {
                 setSearchQuery(query);
-                if (query.length < 2) {
+                if (query.length < 1) {
                     setSearchResults([]);
+                    setShowResults(false);
                     return;
                 }
 
+                setSearching(true);
                 clearTimeout(searchTimeout.current);
                 searchTimeout.current = setTimeout(async () => {
                     try {
                         const response = await api.get(`/api/market/search/${query}`);
                         setSearchResults(response.data);
                         setShowResults(true);
+                        setSearching(false);
                     } catch (error) {
                         console.error('Search error:', error);
+                        setSearching(false);
+                        // Show popular stocks as fallback
+                        setSearchResults([
+                            { symbol: 'AAPL', name: 'Apple Inc.', type: 'Equity' },
+                            { symbol: 'GOOGL', name: 'Alphabet Inc.', type: 'Equity' },
+                            { symbol: 'MSFT', name: 'Microsoft Corporation', type: 'Equity' },
+                            { symbol: 'TSLA', name: 'Tesla Inc.', type: 'Equity' },
+                            { symbol: 'AMZN', name: 'Amazon.com Inc.', type: 'Equity' }
+                        ]);
+                        setShowResults(true);
                     }
                 }, 300);
+            };
+
+            const handleSelectStock = (symbol) => {
+                setShowResults(false);
+                setSearchQuery('');
+                onStockSelect(symbol);
             };
 
             return (
@@ -618,20 +645,30 @@
                                 placeholder="Search stocks (e.g., AAPL, TSLA, GOOGL)..."
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
-                                onFocus={() => searchResults.length > 0 && setShowResults(true)}
+                                onFocus={() => {
+                                    if (searchQuery.length > 0 && searchResults.length > 0) {
+                                        setShowResults(true);
+                                    }
+                                }}
                                 onBlur={() => setTimeout(() => setShowResults(false), 200)}
                             />
-                            {showResults && searchResults.length > 0 && (
+                            {showResults && (
                                 <div className="search-results">
-                                    {searchResults.map((result, idx) => (
+                                    {searching && (
+                                        <div style={{ padding: '20px', textAlign: 'center' }}>
+                                            <div className="spinner" style={{ width: '20px', height: '20px', borderWidth: '2px' }}></div>
+                                        </div>
+                                    )}
+                                    {!searching && searchResults.length === 0 && (
+                                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                            No results found
+                                        </div>
+                                    )}
+                                    {!searching && searchResults.map((result, idx) => (
                                         <div 
                                             key={idx} 
                                             className="search-result-item"
-                                            onClick={() => {
-                                                setActiveTab('stock-' + result.symbol);
-                                                setShowResults(false);
-                                                setSearchQuery('');
-                                            }}
+                                            onClick={() => handleSelectStock(result.symbol)}
                                         >
                                             <div className="search-result-symbol">{result.symbol}</div>
                                             <div className="search-result-name">{result.name}</div>
@@ -755,7 +792,7 @@
         }
 
         // Dashboard Component
-        function Dashboard({ user }) {
+        function Dashboard({ user, onStockSelect }) {
             const [summary, setSummary] = useState(null);
             const [overview, setOverview] = useState(null);
             const [loading, setLoading] = useState(true);
@@ -817,14 +854,14 @@
                             <div className="card">
                                 <h2 className="card-title">🚀 Top Gainers</h2>
                                 {overview.gainers?.slice(0, 5).map((stock, idx) => (
-                                    <StockCard key={idx} stock={stock} />
+                                    <StockCard key={idx} stock={stock} onSelect={onStockSelect} />
                                 ))}
                             </div>
 
                             <div className="card">
                                 <h2 className="card-title">📉 Top Losers</h2>
                                 {overview.losers?.slice(0, 5).map((stock, idx) => (
-                                    <StockCard key={idx} stock={stock} />
+                                    <StockCard key={idx} stock={stock} onSelect={onStockSelect} />
                                 ))}
                             </div>
                         </>
@@ -834,25 +871,126 @@
         }
 
         // Stock Card Component
-        function StockCard({ stock }) {
+        function StockCard({ stock, onSelect }) {
+            return (
+                <div className="stock-card" onClick={() => onSelect && onSelect(stock.symbol)}>
+                    <div className="stock-header">
+                        <div>
+                            <div className="stock-symbol">{stock.symbol}</div>
+                            <div className="stock-name">{stock.name}</div>
+                        </div>
+                        <div className="stock-price">
+                            <div className="price-value">${stock.price?.toFixed(2)}</div>
+                            <div className={`price-change ${stock.changePercent >= 0 ? 'positive' : 'negative'}`}>
+                                {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Stock Detail Component
+        function StockDetail({ symbol }) {
+            const [quote, setQuote] = useState(null);
+            const [loading, setLoading] = useState(true);
             const [showTrade, setShowTrade] = useState(false);
+
+            useEffect(() => {
+                loadStockData();
+            }, [symbol]);
+
+            const loadStockData = async () => {
+                setLoading(true);
+                try {
+                    const response = await api.get(`/api/market/quote/${symbol}`);
+                    setQuote(response.data);
+                } catch (error) {
+                    console.error('Failed to load stock:', error);
+                    alert('Failed to load stock data. Please try again.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            if (loading) {
+                return <div className="loading"><div className="spinner"></div><p>Loading {symbol}...</p></div>;
+            }
+
+            if (!quote) {
+                return (
+                    <div className="card">
+                        <h2 className="card-title">Stock Not Found</h2>
+                        <p>Could not load data for {symbol}</p>
+                    </div>
+                );
+            }
+
+            const stock = {
+                symbol: quote.symbol,
+                name: quote.symbol, // Would need company name API
+                price: quote.price,
+                changePercent: quote.changePercent,
+                change: quote.change,
+                volume: quote.volume,
+                high: quote.high,
+                low: quote.low,
+                open: quote.open,
+                previousClose: quote.previousClose
+            };
 
             return (
                 <>
-                    <div className="stock-card" onClick={() => setShowTrade(true)}>
-                        <div className="stock-header">
-                            <div>
-                                <div className="stock-symbol">{stock.symbol}</div>
-                                <div className="stock-name">{stock.name}</div>
+                    <div className="card">
+                        <div style={{ marginBottom: '24px' }}>
+                            <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '8px' }}>{quote.symbol}</h1>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginBottom: '16px' }}>
+                                <span style={{ fontSize: '48px', fontWeight: '700', fontFamily: 'Roboto Mono' }}>
+                                    ${quote.price.toFixed(2)}
+                                </span>
+                                <span style={{ 
+                                    fontSize: '24px', 
+                                    fontWeight: '600',
+                                    color: quote.changePercent >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'
+                                }}>
+                                    {quote.changePercent >= 0 ? '+' : ''}{quote.change.toFixed(2)} ({quote.changePercent.toFixed(2)}%)
+                                </span>
                             </div>
-                            <div className="stock-price">
-                                <div className="price-value">${stock.price?.toFixed(2)}</div>
-                                <div className={`price-change ${stock.changePercent >= 0 ? 'positive' : 'negative'}`}>
-                                    {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
+                            <button 
+                                className="btn-primary btn-success"
+                                onClick={() => setShowTrade(true)}
+                                style={{ marginRight: '12px' }}
+                            >
+                                Trade {quote.symbol}
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+                            <div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>Open</div>
+                                <div style={{ fontSize: '18px', fontWeight: '600', fontFamily: 'Roboto Mono' }}>${quote.open.toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>High</div>
+                                <div style={{ fontSize: '18px', fontWeight: '600', fontFamily: 'Roboto Mono' }}>${quote.high.toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>Low</div>
+                                <div style={{ fontSize: '18px', fontWeight: '600', fontFamily: 'Roboto Mono' }}>${quote.low.toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>Prev Close</div>
+                                <div style={{ fontSize: '18px', fontWeight: '600', fontFamily: 'Roboto Mono' }}>${quote.previousClose.toFixed(2)}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '4px' }}>Volume</div>
+                                <div style={{ fontSize: '18px', fontWeight: '600', fontFamily: 'Roboto Mono' }}>
+                                    {(quote.volume / 1000000).toFixed(2)}M
                                 </div>
                             </div>
                         </div>
                     </div>
+
                     {showTrade && <TradeModal stock={stock} onClose={() => setShowTrade(false)} />}
                 </>
             );
